@@ -29,51 +29,51 @@ ssize_t read_row(int table_handle, char *row, int row_size) {
 }
 
 /*
- * ResultSet
+ * DataSet
  */
-struct ResultSet {
+struct DataSet {
   int num_columns;
   struct Column **columns;
   int num_rows;
   char **rows;
 };
 
-struct ResultSet *resultset_new() {
-  struct ResultSet *resultset = (struct ResultSet*)malloc(sizeof(struct ResultSet));
-  resultset->num_columns = 0;
-  resultset->columns = NULL;
-  resultset->num_rows = 0;
-  resultset->rows = NULL;
-  return resultset;
+struct DataSet *dataset_new() {
+  struct DataSet *data_set = (struct DataSet*)malloc(sizeof(struct DataSet));
+  data_set->num_columns = 0;
+  data_set->columns = NULL;
+  data_set->num_rows = 0;
+  data_set->rows = NULL;
+  return data_set;
 }
 
-void resultset_free(struct ResultSet *resultset) {
-  free(resultset->columns);
-  free(resultset->rows);
-  free(resultset);
+void dataset_free(struct DataSet *data_set) {
+  free(data_set->columns);
+  free(data_set->rows);
+  free(data_set);
 }
 
-void resultset_add_row(struct ResultSet *resultset, char *row) {
-  char **old = resultset->rows;
-  resultset->rows = (char**)calloc(resultset->num_rows + 1, sizeof(char*));
+void dataset_add_row(struct DataSet *data_set, char *row) {
+  char **old = data_set->rows;
+  data_set->rows = (char**)calloc(data_set->num_rows + 1, sizeof(char*));
   int i;
-  for (i = 0; i < resultset->num_rows; i++) {
-    resultset->rows[i] = old[i];
+  for (i = 0; i < data_set->num_rows; i++) {
+    data_set->rows[i] = old[i];
   }
-  resultset->rows[i] = row;
-  resultset->num_rows++;
+  data_set->rows[i] = row;
+  data_set->num_rows++;
   free(old);
 }
 
-void resultset_add_column(struct ResultSet *resultset, struct Column *column) {
-  struct Column **old = resultset->columns;
-  resultset->columns = (struct Column **)calloc(resultset->num_columns + 1, sizeof(struct Column *));
+void dataset_add_column(struct DataSet *data_set, struct Column *column) {
+  struct Column **old = data_set->columns;
+  data_set->columns = (struct Column **)calloc(data_set->num_columns + 1, sizeof(struct Column *));
   int i;
-  for (i = 0; i < resultset->num_columns; i++) {
-    resultset->columns[i] = old[i];
+  for (i = 0; i < data_set->num_columns; i++) {
+    data_set->columns[i] = old[i];
   }
-  resultset->columns[i] = column;
-  resultset->num_columns++;
+  data_set->columns[i] = column;
+  data_set->num_columns++;
   free(old);
 }
 
@@ -363,31 +363,40 @@ void table_read_definition(struct Table *table, struct Table *columns) {
   }
 }
 
-struct ResultSet *select_statement(struct Table *table) {
-  struct ResultSet *resultset = resultset_new();
+struct DataSet *select_statement(struct Table *table) {
+  struct DataSet *data_set = dataset_new();
   int row_size = table_get_row_size(table);
 
   lseek(table->fd, 0, SEEK_SET);
 
   for (int i = 0; i < table->num_columns; i++) {
-    resultset_add_column(resultset, table->columns + i);
+    dataset_add_column(data_set, table->columns + i);
   }
 
   char *row = (char*)calloc(row_size, sizeof(char));
   while (read_row(table->fd, row, row_size) > 0) {
-    resultset_add_row(resultset, row);
+    dataset_add_row(data_set, row);
     row = (char*)calloc(row_size, sizeof(char));
   }
   free(row);
-  return resultset;
+  return data_set;
 }
 
-void resultset_print(struct ResultSet *resultset) {
+int find_column(struct Table *table, const char *column_name) {
+  for (int i = 0; i < table->num_columns; i++) {
+    if (strcmp(table->columns[i].name, column_name) == 0) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+void dataset_print(struct DataSet *data_set) {
   int total_width = 0;
-  int col_print_width[resultset->num_columns];
+  int col_print_width[data_set->num_columns];
   char *format = (char*)alloca(20 * sizeof(char));
-  for (int i = 0; i < resultset->num_columns; i++) {
-    struct Column *column = *(resultset->columns + i);
+  for (int i = 0; i < data_set->num_columns; i++) {
+    struct Column *column = *(data_set->columns + i);
     switch (column->type) {
       case C_CHAR:
         col_print_width[i] = min(20, max(strlen(column->name), column->size)) + 1;
@@ -407,10 +416,10 @@ void resultset_print(struct ResultSet *resultset) {
   for (int i = 0; i < total_width; i++) printf("-");
   printf("\n");
 
-  for (int i = 0; i < resultset->num_rows; i++) {
-    char *row = *(resultset->rows + i);
-    for (int j = 0; j < resultset->num_columns; j++) {
-      struct Column *column = *(resultset->columns + j);
+  for (int i = 0; i < data_set->num_rows; i++) {
+    char *row = *(data_set->rows + i);
+    for (int j = 0; j < data_set->num_columns; j++) {
+      struct Column *column = *(data_set->columns + j);
       switch (column->type) {
         case C_CHAR:
           snprintf(format, 20, "%%-%ds", col_print_width[j]);
@@ -446,9 +455,9 @@ int main() {
 
   describe_statement(columns);
 
-  struct ResultSet *resultset = select_statement(columns);
-  resultset_print(resultset);
-  resultset_free(resultset);
+  struct DataSet *data_set = select_statement(columns);
+  dataset_print(data_set);
+  dataset_free(data_set);
 
   struct Table *tables = table_new("tables");
   table_read_definition(tables, columns);
@@ -457,9 +466,9 @@ int main() {
   printf("\n\n\n");
   describe_statement(tables);
 
-  resultset = select_statement(tables);
-  resultset_print(resultset);
-  resultset_free(resultset);
+  data_set = select_statement(tables);
+  dataset_print(data_set);
+  dataset_free(data_set);
 
   table_free(tables);
 
