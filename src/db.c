@@ -448,29 +448,45 @@ void describe_statement(struct Table *table) {
   printf("\n");
 }
 
-int main() {
+void print_help() {
+  printf("db\n");
+  printf("\n");
+  printf("describe <table-name>\n");
+  printf("    - describe the structure of the given table\n");
+  printf("select <table-name>\n");
+  printf("    - select all the rows of the given table\n");
+  printf("\n");
+}
+
+int main(int argc, char *argv[]) {
+  if (argc < 3) {
+    print_help();
+    exit(EXIT_SUCCESS);
+  }
+
   struct Table *columns = table_new("columns");
   table_read_definition(columns, columns);
   table_open(columns);
 
-  describe_statement(columns);
+  if (strcmp(argv[1], "describe") == 0) {
+    struct Table *table = table_new(argv[2]);
+    table_read_definition(table, columns);
+    table_open(table);
 
-  struct DataSet *data_set = select_statement(columns);
-  dataset_print(data_set);
-  dataset_free(data_set);
+    describe_statement(table);
 
-  struct Table *tables = table_new("tables");
-  table_read_definition(tables, columns);
-  table_open(tables);
+    table_free(table);
+  } else if (strcmp(argv[1], "select") == 0) {
+    struct Table *table = table_new(argv[2]);
+    table_read_definition(table, columns);
+    table_open(table);
 
-  printf("\n\n\n");
-  describe_statement(tables);
+    struct DataSet *data_set = select_statement(table);
+    dataset_print(data_set);
+    dataset_free(data_set);
 
-  data_set = select_statement(tables);
-  dataset_print(data_set);
-  dataset_free(data_set);
-
-  table_free(tables);
+    table_free(table);
+  }
 
   table_free(columns);
 }
