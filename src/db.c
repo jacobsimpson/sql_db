@@ -29,6 +29,35 @@ ssize_t read_row(int table_handle, char *row, int row_size) {
 }
 
 /*
+ * Columns.
+ */
+#define C_CHAR 1
+#define C_INT 2
+
+struct Column {
+  char *name;
+  int type;
+  int position;
+  int size; // The number of bytes occupied by the data in this column.
+  int offset; // The location of this column data within a row.
+};
+
+void column_free_array(int num_columns, struct Column *columns) {
+  for (int i = 0; i < num_columns; i++) {
+    free(columns[i].name);
+  }
+  free(columns);
+}
+
+int* get_row_int_data(char *row, struct Column *column) {
+  return (int*)(row + column->offset);
+}
+
+char* get_row_char_data(char *row, struct Column *column) {
+  return row + column->offset;
+}
+
+/*
  * DataSet
  */
 struct DataSet {
@@ -77,34 +106,50 @@ void dataset_add_column(struct DataSet *data_set, struct Column *column) {
   free(old);
 }
 
-
-/*
- * Columns.
- */
-#define C_CHAR 1
-#define C_INT 2
-
-struct Column {
-  char *name;
-  int type;
-  int position;
-  int size; // The number of bytes occupied by the data in this column.
-  int offset; // The location of this column data within a row.
-};
-
-void column_free_array(int num_columns, struct Column *columns) {
-  for (int i = 0; i < num_columns; i++) {
-    free(columns[i].name);
+void dataset_print(struct DataSet *data_set) {
+  int total_width = 0;
+  int col_print_width[data_set->num_columns];
+  char *format = (char*)alloca(20 * sizeof(char));
+  for (int i = 0; i < data_set->num_columns; i++) {
+    struct Column *column = *(data_set->columns + i);
+    switch (column->type) {
+      case C_CHAR:
+        col_print_width[i] = min(20, max(strlen(column->name), column->size)) + 1;
+        break;
+      case C_INT:
+        col_print_width[i] = min(20, max(strlen(column->name), 7)) + 1;
+        break;
+      default:
+        break;
+    }
+    snprintf(format, 20, "%%-%ds", col_print_width[i]);
+    printf(format, column->name);
+    total_width += col_print_width[i];
   }
-  free(columns);
-}
 
-int* get_row_int_data(char *row, struct Column *column) {
-  return (int*)(row + column->offset);
-}
+  printf("\n");
+  for (int i = 0; i < total_width; i++) printf("-");
+  printf("\n");
 
-char* get_row_char_data(char *row, struct Column *column) {
-  return row + column->offset;
+  for (int i = 0; i < data_set->num_rows; i++) {
+    char *row = *(data_set->rows + i);
+    for (int j = 0; j < data_set->num_columns; j++) {
+      struct Column *column = *(data_set->columns + j);
+      switch (column->type) {
+        case C_CHAR:
+          snprintf(format, 20, "%%-%ds", col_print_width[j]);
+          printf(format, get_row_char_data(row, column));
+          break;
+        case C_INT:
+          snprintf(format, 20, "%%-%dd", col_print_width[j]);
+          printf(format, *get_row_int_data(row, column));
+          break;
+        default:
+          break;
+      }
+    }
+    printf("\n");
+  }
 }
 
 
@@ -391,49 +436,30 @@ int find_column(struct Table *table, const char *column_name) {
   return -1;
 }
 
-void dataset_print(struct DataSet *data_set) {
-  int total_width = 0;
-  int col_print_width[data_set->num_columns];
-  char *format = (char*)alloca(20 * sizeof(char));
-  for (int i = 0; i < data_set->num_columns; i++) {
-    struct Column *column = *(data_set->columns + i);
-    switch (column->type) {
-      case C_CHAR:
-        col_print_width[i] = min(20, max(strlen(column->name), column->size)) + 1;
-        break;
-      case C_INT:
-        col_print_width[i] = min(20, max(strlen(column->name), 7)) + 1;
-        break;
-      default:
-        break;
-    }
-    snprintf(format, 20, "%%-%ds", col_print_width[i]);
-    printf(format, column->name);
-    total_width += col_print_width[i];
-  }
+void insert_statement(struct Table *table, struct DataSet *data_set) {
+  lseek(table->fd, 0, SEEK_END);
 
-  printf("\n");
-  for (int i = 0; i < total_width; i++) printf("-");
-  printf("\n");
-
-  for (int i = 0; i < data_set->num_rows; i++) {
-    char *row = *(data_set->rows + i);
-    for (int j = 0; j < data_set->num_columns; j++) {
-      struct Column *column = *(data_set->columns + j);
-      switch (column->type) {
-        case C_CHAR:
-          snprintf(format, 20, "%%-%ds", col_print_width[j]);
-          printf(format, get_row_char_data(row, column));
-          break;
-        case C_INT:
-          snprintf(format, 20, "%%-%dd", col_print_width[j]);
-          printf(format, *get_row_int_data(row, column));
-          break;
-        default:
-          break;
+  int row_size = table_get_row_size(table);
+  char *row = (char*)alloca(row_size * sizeof(char));
+  for (int r = 0; r < data_set->num_rows; r++) {
+    memset(row, 0, row_size);
+    for (int c = 0; c < data_set->num_columns; c++) {
+      int i = find_column(table, data_set->columns[c]->name);
+      if (i < 0) {
+        printf("Unable to find the column '%s' in the table '%s'\n",
+                data_set->columns[c]->name, table->name);
+        return;
+      }
+      if (data_set->columns[c]->type == C_INT) {
+        int *intVal = get_row_int_data(row, table->columns + i);
+        *intVal = *get_row_int_data(data_set->rows[r], data_set->columns[c]);
+      } else if (data_set->columns[c]->type == C_CHAR) {
+        char *charVal = get_row_char_data(row, table->columns + i);
+        strlcpy(charVal, get_row_char_data(data_set->rows[r], data_set->columns[c]),
+                data_set->columns[c]->size);
       }
     }
-    printf("\n");
+    write_row(table->fd, row, row_size);
   }
 }
 
@@ -443,7 +469,8 @@ void describe_statement(struct Table *table) {
   printf("name                                     type   size\n");
   printf("-----------------------------------------------------------------\n");
   for (int i = 0; i < table->num_columns; i++) {
-    printf("%-40s %d      %d\n", table->columns[i].name, table->columns[i].type, table->columns[i].size);
+    printf("%-40s %d      %d\n",
+            table->columns[i].name, table->columns[i].type, table->columns[i].size);
   }
   printf("\n");
 }
@@ -455,6 +482,10 @@ void print_help() {
   printf("    - describe the structure of the given table\n");
   printf("select <table-name>\n");
   printf("    - select all the rows of the given table\n");
+  printf("insert <table-name> <value>+\n");
+  printf("    - insert a new row into the given table\n");
+  printf("      One value must be supplied for each column in the table\n");
+  printf("      in the order the columns appear in the table.\n");
   printf("\n");
 }
 
@@ -483,6 +514,34 @@ int main(int argc, char *argv[]) {
 
     struct DataSet *data_set = select_statement(table);
     dataset_print(data_set);
+    dataset_free(data_set);
+
+    table_free(table);
+  } else if (strcmp(argv[1], "insert") == 0) {
+    struct Table *table = table_new(argv[2]);
+    table_read_definition(table, columns);
+    table_open(table);
+
+    struct DataSet *data_set = dataset_new();
+    for (int i = 0; i < table->num_columns; i++) {
+      dataset_add_column(data_set, table->columns + i);
+    }
+
+    int row_size = table_get_row_size(table);
+    char *row = (char*)alloca(row_size * sizeof(char));
+    memset(row, 0, row_size);
+    for (int c = 0; c < data_set->num_columns; c++) {
+      if (data_set->columns[c]->type == C_INT) {
+        int *intVal = get_row_int_data(row, table->columns + c);
+        *intVal = atoi(argv[c+3]);
+      } else if (data_set->columns[c]->type == C_CHAR) {
+        char *charVal = get_row_char_data(row, table->columns + c);
+        strlcpy(charVal, argv[c+3], data_set->columns[c]->size);
+      }
+    }
+    dataset_add_row(data_set, row);
+
+    insert_statement(table, data_set);
     dataset_free(data_set);
 
     table_free(table);
