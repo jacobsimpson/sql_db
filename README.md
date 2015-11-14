@@ -19,6 +19,13 @@ brew install valgrind
 make
 ```
 
+At this point, the program only:
+
+* initializes the metadata table if the tables are not initialized
+* print the table descriptions (describes a table)
+* print the table contents (select * from table)
+* insert a complete row
+
 Select all the rows and columns from the 'tables' table.
 
 ```bash
@@ -46,17 +53,22 @@ build/db insert tables 3 the_table_name
 
 ## Development
 
-### Executing the Program
-
-At this point, the program only:
-
-* initializes the metadata table if the tables are not initialized
-* print the table descriptions
-* print the table contents
-
 ```bash
 make
+make test
 build/db
+```
+
+You can run individual tests like so:
+
+```bash
+make test_map
+```
+
+See which individual tests are available like so:
+
+```bash
+ls test/test_*.c
 ```
 
 During development, run the db program using valgrind to confirm the memory is

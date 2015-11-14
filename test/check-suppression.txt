@@ -1,0 +1,15 @@
+{
+   check_suppression
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:__smakebuf
+   fun:__swsetup
+   fun:__sfvwrite
+   fun:fwrite
+   fun:ppack
+   fun:send_ctx_info
+   fun:srunner_run_setup
+   fun:srunner_run
+   fun:main
+}
