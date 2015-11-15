@@ -6,6 +6,7 @@
 #include <unistd.h>  /* Prototyes for some of the system functions. */
 #include <fcntl.h>   /* O_RDONLY. */
 #include <string.h>
+#include "map.h"
 
 int max(int i1, int i2) {
   if (i1 < i2) return i2;
@@ -489,64 +490,83 @@ void print_help() {
   printf("\n");
 }
 
+Map *open_all_tables() {
+  Map *open_tables = map_new();
+
+  struct Table *columns = table_new("columns");
+  table_read_definition(columns, columns);
+  table_open(columns);
+  map_put(open_tables, "columns", columns);
+
+  struct Table *tables = table_new("tables");
+  table_read_definition(tables, columns);
+  table_open(tables);
+  map_put(open_tables, "tables", tables);
+
+  return open_tables;
+}
+
 int main(int argc, char *argv[]) {
   if (argc < 3) {
     print_help();
     exit(EXIT_SUCCESS);
   }
-
-  struct Table *columns = table_new("columns");
-  table_read_definition(columns, columns);
-  table_open(columns);
+  Map *open_tables = open_all_tables();
 
   if (strcmp(argv[1], "describe") == 0) {
-    struct Table *table = table_new(argv[2]);
-    table_read_definition(table, columns);
-    table_open(table);
-
-    describe_statement(table);
-
-    table_free(table);
+    struct Table *table = map_get(open_tables, argv[2]);
+    if (table == NULL) {
+      printf("There is no table '%s'.", argv[2]);
+    } else {
+      describe_statement(table);
+    }
   } else if (strcmp(argv[1], "select") == 0) {
-    struct Table *table = table_new(argv[2]);
-    table_read_definition(table, columns);
-    table_open(table);
-
-    struct DataSet *data_set = select_statement(table);
-    dataset_print(data_set);
-    dataset_free(data_set);
-
-    table_free(table);
+    struct Table *table = map_get(open_tables, argv[2]);
+    if (table == NULL) {
+      printf("There is no table '%s'.", argv[2]);
+    } else {
+      struct DataSet *data_set = select_statement(table);
+      dataset_print(data_set);
+      dataset_free(data_set);
+    }
   } else if (strcmp(argv[1], "insert") == 0) {
-    struct Table *table = table_new(argv[2]);
-    table_read_definition(table, columns);
-    table_open(table);
-
-    struct DataSet *data_set = dataset_new();
-    for (int i = 0; i < table->num_columns; i++) {
-      dataset_add_column(data_set, table->columns + i);
-    }
-
-    int row_size = table_get_row_size(table);
-    char *row = (char*)alloca(row_size * sizeof(char));
-    memset(row, 0, row_size);
-    for (int c = 0; c < data_set->num_columns; c++) {
-      if (data_set->columns[c]->type == C_INT) {
-        int *intVal = get_row_int_data(row, table->columns + c);
-        *intVal = atoi(argv[c+3]);
-      } else if (data_set->columns[c]->type == C_CHAR) {
-        char *charVal = get_row_char_data(row, table->columns + c);
-        strlcpy(charVal, argv[c+3], data_set->columns[c]->size);
+    struct Table *table = map_get(open_tables, argv[2]);
+    if (table == NULL) {
+      printf("There is no table '%s'.", argv[2]);
+    } else if (table->num_columns != (argc - 3)) {
+      printf("The table has %d columns but %d data items were passed in.\n",
+              table->num_columns,
+              argc - 3);
+    } else {
+      struct DataSet *data_set = dataset_new();
+      for (int i = 0; i < table->num_columns; i++) {
+        dataset_add_column(data_set, table->columns + i);
       }
+
+      int row_size = table_get_row_size(table);
+      char *row = (char*)alloca(row_size * sizeof(char));
+      memset(row, 0, row_size);
+      for (int c = 0; c < data_set->num_columns; c++) {
+        if (data_set->columns[c]->type == C_INT) {
+          int *intVal = get_row_int_data(row, table->columns + c);
+          *intVal = atoi(argv[c+3]);
+        } else if (data_set->columns[c]->type == C_CHAR) {
+          char *charVal = get_row_char_data(row, table->columns + c);
+          strlcpy(charVal, argv[c+3], data_set->columns[c]->size);
+        }
+      }
+      dataset_add_row(data_set, row);
+
+      insert_statement(table, data_set);
+      dataset_free(data_set);
     }
-    dataset_add_row(data_set, row);
-
-    insert_statement(table, data_set);
-    dataset_free(data_set);
-
-    table_free(table);
   }
 
-  table_free(columns);
+  // Close all the tables.
+  char **keys = map_keys(open_tables);
+  for (int i = 0; i < map_size(open_tables); i++) {
+    table_free(map_get(open_tables, keys[i]));
+  }
+  map_free(open_tables);
 }
 
