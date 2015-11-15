@@ -1,8 +1,7 @@
 #include <stdlib.h>
 #include <check.h>
 
-START_TEST(test_columns_table)
-{
+START_TEST(test_columns_table) {
     ck_assert_int_eq(5, 5);
 }
 END_TEST

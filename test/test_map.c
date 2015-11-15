@@ -3,8 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-START_TEST(test_map_new_free)
-{
+START_TEST(test_map_new_free) {
     Map *map = map_new();
     ck_assert_ptr_ne(map, NULL);
     ck_assert_int_eq(map_size(map), 0);
@@ -12,8 +11,7 @@ START_TEST(test_map_new_free)
 }
 END_TEST
 
-START_TEST(test_map_put)
-{
+START_TEST(test_map_put) {
     Map *map = map_new();
     ck_assert_ptr_ne(map, NULL);
     ck_assert_int_eq(map_size(map), 0);
@@ -28,8 +26,7 @@ START_TEST(test_map_put)
 }
 END_TEST
 
-START_TEST(test_map_remove_non_existing)
-{
+START_TEST(test_map_remove_non_existing) {
     Map *map = map_new();
     ck_assert_ptr_ne(map, NULL);
     ck_assert_int_eq(map_size(map), 0);
@@ -42,8 +39,7 @@ START_TEST(test_map_remove_non_existing)
 }
 END_TEST
 
-START_TEST(test_map_remove)
-{
+START_TEST(test_map_remove) {
     Map *map = map_new();
     ck_assert_ptr_ne(map, NULL);
     ck_assert_int_eq(map_size(map), 0);
@@ -62,8 +58,7 @@ START_TEST(test_map_remove)
 }
 END_TEST
 
-START_TEST(test_map_put_key_multiple)
-{
+START_TEST(test_map_put_key_multiple) {
     Map *map = map_new();
     ck_assert_ptr_ne(map, NULL);
     ck_assert_int_eq(map_size(map), 0);
@@ -88,8 +83,7 @@ START_TEST(test_map_put_key_multiple)
 }
 END_TEST
 
-START_TEST(test_map_put_multiple_keys)
-{
+START_TEST(test_map_put_multiple_keys) {
     char *numbers[] = {"zero", "one", "two", "three", "four", "five", "six", "seven", "eight"};
 
     Map *map = map_new_capacity(10);
@@ -114,8 +108,7 @@ START_TEST(test_map_put_multiple_keys)
 }
 END_TEST
 
-START_TEST(test_map_put_too_many_keys)
-{
+START_TEST(test_map_put_too_many_keys) {
     char *numbers[] = {"zero", "one", "two", "three", "four", "five", "six", "seven", "eight"};
 
     Map *map = map_new_capacity(5);
@@ -140,8 +133,7 @@ START_TEST(test_map_put_too_many_keys)
 }
 END_TEST
 
-START_TEST(test_map_keys)
-{
+START_TEST(test_map_keys) {
     char *numbers[] = {"zero", "one", "two", "three", "four", "five", "six", "seven", "eight"};
 
     Map *map = map_new();
