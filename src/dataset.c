@@ -7,8 +7,7 @@
 
 DataSet *dataset_new() {
     DataSet *data_set = (DataSet*)malloc(sizeof(DataSet));
-    data_set->num_columns = 0;
-    data_set->columns = NULL;
+    data_set->columns = column_list_new();
     data_set->num_rows = 0;
     data_set->rows = NULL;
     return data_set;
@@ -25,7 +24,7 @@ int min(int i1, int i2) {
 }
 
 void dataset_free(DataSet *data_set) {
-    free(data_set->columns);
+    column_list_free(data_set->columns);
     free(data_set->rows);
     free(data_set);
 }
@@ -42,24 +41,12 @@ void dataset_add_row(DataSet *data_set, char *row) {
     free(old);
 }
 
-void dataset_add_column(DataSet *data_set, Column *column) {
-    Column **old = data_set->columns;
-    data_set->columns = (Column **)calloc(data_set->num_columns + 1, sizeof(Column *));
-    int i;
-    for (i = 0; i < data_set->num_columns; i++) {
-        data_set->columns[i] = old[i];
-    }
-    data_set->columns[i] = column;
-    data_set->num_columns++;
-    free(old);
-}
-
 void dataset_print(DataSet *data_set) {
     int total_width = 0;
-    int col_print_width[data_set->num_columns];
+    int col_print_width[column_list_size(data_set->columns)];
     char *format = (char*)alloca(20 * sizeof(char));
-    for (int i = 0; i < data_set->num_columns; i++) {
-        Column *column = *(data_set->columns + i);
+    for (int i = 0; i < column_list_size(data_set->columns); i++) {
+        Column *column = column_list_get(data_set->columns, i);
         switch (column->type) {
         case C_CHAR:
             col_print_width[i] = min(20, max(strlen(column->name), column->size)) + 1;
@@ -81,8 +68,8 @@ void dataset_print(DataSet *data_set) {
 
     for (int i = 0; i < data_set->num_rows; i++) {
         char *row = *(data_set->rows + i);
-        for (int j = 0; j < data_set->num_columns; j++) {
-            Column *column = *(data_set->columns + j);
+        for (int j = 0; j < column_list_size(data_set->columns); j++) {
+            Column *column = column_list_get(data_set->columns, j);
             switch (column->type) {
             case C_CHAR:
                 snprintf(format, 20, "%%-%ds", col_print_width[j]);

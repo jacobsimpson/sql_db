@@ -3,10 +3,10 @@
 #define __DATASET_H__
 
 #include "column.h"
+#include "column_list.h"
 
 typedef struct DataSet {
-    int num_columns;
-    Column **columns;
+    ColumnList *columns;
     int num_rows;
     char **rows;
 } DataSet;

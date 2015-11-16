@@ -1,80 +1,99 @@
 
+#include "map.h"
 #include "row.h"
 #include "table.h"
+#include "column_list.h"
 #include <fcntl.h>   /* O_RDONLY. */
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>  /* Prototyes for some of the system functions. */
-#include <stdio.h>
+
+Table *table_new(const char* table_name) {
+    Table *table = (Table*)malloc(sizeof(Table));
+    int table_name_size = (strlen(table_name) + 1);
+    table->name = (char*)calloc(table_name_size, sizeof(char));
+    strlcpy(table->name, table_name, table_name_size);
+    table->columns = column_list_new();
+    return table;
+}
+
+void table_free(Table *table) {
+    close(table->fd);
+    free(table->name);
+    column_list_free(table->columns);
+    free(table);
+}
 
 int table_get_row_size(Table *table) {
     int result = 0;
-    for (int i = 0; i < table->num_columns; i++) {
-        result += table->columns[i].size;
+    for (int i = 0; i < column_list_size(table->columns); i++) {
+        result += column_list_get(table->columns, i)->size;
     }
     return result;
 }
 
-void table_create_columns(Table *table) {
+static void table_create_columns(Table *table) {
     lseek(table->fd, 0, SEEK_SET);
 
     int row_size = table_get_row_size(table);
     char *row = (char*)alloca(row_size * sizeof(char));
     memset(row, 0, row_size);
-    int *id = get_row_int_data(row, table->columns);
-    char *table_name = get_row_char_data(row, table->columns + 1);
-    char *column_name = get_row_char_data(row, table->columns + 2);
-    char *data_type = get_row_char_data(row, table->columns + 3);
-    int *position = get_row_int_data(row, table->columns + 4);
-    int *size = get_row_int_data(row, table->columns + 5);
-    int *next_value = get_row_int_data(row, table->columns + 6);
+    int *id = get_row_int_data(row, column_list_get(table->columns, 0));
+    char *table_name = get_row_char_data(row, column_list_get(table->columns, 1));
+    char *column_name = get_row_char_data(row, column_list_get(table->columns, 2));
+    char *data_type = get_row_char_data(row, column_list_get(table->columns, 3));
+    int *position = get_row_int_data(row, column_list_get(table->columns, 4));
+    int *size = get_row_int_data(row, column_list_get(table->columns, 5));
+    int *next_value = get_row_int_data(row, column_list_get(table->columns, 6));
 
     int i;
-    for (i = 0; i < table->num_columns; i++) {
+    for (i = 0; i < column_list_size(table->columns); i++) {
         *id = i;
-        strlcpy(table_name, table->name, table->columns[1].size);
-        strlcpy(column_name, table->columns[i].name, table->columns[2].size);
-        if (table->columns[i].type == C_CHAR) {
-            strlcpy(data_type, "char", table->columns[3].size);
+        strlcpy(table_name, table->name, column_list_get(table->columns, 1)->size);
+        strlcpy(column_name, column_list_get(table->columns, i)->name,
+                column_list_get(table->columns, 2)->size);
+        if (column_list_get(table->columns, i)->type == C_CHAR) {
+            strlcpy(data_type, "char", column_list_get(table->columns, 3)->size);
         } else {
-            strlcpy(data_type, "int", table->columns[3].size);
+            strlcpy(data_type, "int", column_list_get(table->columns, 3)->size);
         }
-        *position = table->columns[i].position;
-        *size = table->columns[i].size;
+        *position = column_list_get(table->columns, i)->position;
+        *size = column_list_get(table->columns, i)->size;
         *next_value = 0;
         write_row(table->fd, row, row_size);
     }
 
     *id = i++;
-    strlcpy(table_name, "tables", table->columns[1].size);
-    strlcpy(column_name, "id", table->columns[2].size);
-    strlcpy(data_type, "int", table->columns[3].size);
+    strlcpy(table_name, "tables", column_list_get(table->columns, 1)->size);
+    strlcpy(column_name, "id", column_list_get(table->columns, 2)->size);
+    strlcpy(data_type, "int", column_list_get(table->columns, 3)->size);
     *position = 1;
     *size = 4;
     *next_value = 0;
     write_row(table->fd, row, row_size);
 
     *id = i++;
-    strlcpy(table_name, "tables", table->columns[1].size);
-    strlcpy(column_name, "table_name", table->columns[2].size);
-    strlcpy(data_type, "char", table->columns[3].size);
+    strlcpy(table_name, "tables", column_list_get(table->columns, 1)->size);
+    strlcpy(column_name, "table_name", column_list_get(table->columns, 2)->size);
+    strlcpy(data_type, "char", column_list_get(table->columns, 3)->size);
     *position = 2;
     *size = 101;
     *next_value = 0;
     write_row(table->fd, row, row_size);
 }
 
-void table_create_tables(Table *table) {
+static void table_create_tables(Table *table) {
     lseek(table->fd, 0, SEEK_SET);
 
     int row_size = table_get_row_size(table);
     char *row = (char*)alloca(row_size * sizeof(char));
     memset(row, 0, row_size);
-    int *id = get_row_int_data(row, table->columns);
-    char *table_name = get_row_char_data(row, table->columns + 1);
+    int *id = get_row_int_data(row, column_list_get(table->columns, 0));
+    char *table_name = get_row_char_data(row, column_list_get(table->columns, 1));
 
     *id = 0;
-    strlcpy(table_name, table->name, table->columns[1].size);
+    strlcpy(table_name, table->name, column_list_get(table->columns, 1)->size);
     write_row(table->fd, row, row_size);
 
     *id = 1;
@@ -90,10 +109,10 @@ void table_create(Table *table) {
         exit(EXIT_FAILURE);
     }
 
-    // The columns table is special. All other tables will be created empty,
-    // but the columns table, in effect, defines the structure of the database,
-    // so an empty columns table needs some basic information about the tables
-    // every database has, 'columns' and 'tables'.
+    // The 'columns' and the 'tables' tables are special. All other tables will
+    // be created empty, but the 'columns' table, in effect, defines the
+    // structure of the database, so an empty columns table needs some basic
+    // information about the tables every database has, 'columns' and 'tables'.
     if (strcmp(table->name, "columns") == 0) {
         table_create_columns(table);
     } else if (strcmp(table->name, "tables") == 0) {
@@ -109,114 +128,112 @@ void table_open(Table* table) {
     }
 }
 
-Table *table_new(const char* table_name) {
-    Table *table = (Table*)malloc(sizeof(Table));
-    int table_name_size = (strlen(table_name) + 1);
-    table->name = (char*)calloc(table_name_size, sizeof(char));
-    strlcpy(table->name, table_name, table_name_size);
-    table->num_columns = 0;
-    return table;
+DataSet *select_statement(Table *table) {
+    DataSet *data_set = dataset_new();
+    int row_size = table_get_row_size(table);
+
+    lseek(table->fd, 0, SEEK_SET);
+
+    for (int i = 0; i < column_list_size(table->columns); i++) {
+        column_list_add(data_set->columns, column_list_get(table->columns, i));
+    }
+
+    char *row = (char*)calloc(row_size, sizeof(char));
+    while (read_row(table->fd, row, row_size) > 0) {
+        dataset_add_row(data_set, row);
+        row = (char*)calloc(row_size, sizeof(char));
+    }
+    free(row);
+    return data_set;
 }
 
-void table_free(Table *table) {
-    close(table->fd);
-    free(table->name);
-    column_free_array(table->num_columns, table->columns);
-    free(table);
-}
-
-
-void table_read_definition_tables(Table *table) {
-    table->num_columns = 2;
-
-    table->columns = (struct Column*)calloc(table->num_columns, sizeof(struct Column));
-
+static void table_read_definition_tables(Table *table) {
+    Column *column;
     int offset = 0;
+
     // Structure of the 'id' column.
-    table->columns[0].name = (char*)calloc(3, sizeof(char));
-    strcpy(table->columns[0].name, "id");
-    table->columns[0].type = C_INT;
-    table->columns[0].size = 4;
-    table->columns[0].offset = offset;
-    offset += table->columns[0].size;
+    column = column_new_w_name("id");
+    column->type = C_INT;
+    column->size = 4;
+    column->offset = offset;
+    offset += column->size;
+    column_list_add(table->columns, column);
 
     // Structure of the 'table_name' column.
-    table->columns[1].name = (char*)calloc(11, sizeof(char));
-    strcpy(table->columns[1].name, "table_name");
-    table->columns[1].type = C_CHAR;
-    table->columns[1].size = 101; // An extra byte to record the string null termination.
-    table->columns[1].offset = offset;
-    offset += table->columns[1].size;
+    column = column_new_w_name("table_name");
+    column->type = C_CHAR;
+    column->size = 101; // An extra byte to record the string null termination.
+    column->offset = offset;
+    offset += column->size;
+    column_list_add(table->columns, column);
 }
 
-void table_read_definition_columns(Table *table) {
-    table->num_columns = 7;
-
-    table->columns = (struct Column*)calloc(table->num_columns, sizeof(struct Column));
-
+static void table_read_definition_columns(Table *table) {
+    Column *column;
     int offset = 0;
+
     // Structure of the 'id' column.
-    table->columns[0].name = (char*)calloc(3, sizeof(char));
-    strcpy(table->columns[0].name, "id");
-    table->columns[0].type = C_INT;
-    table->columns[0].position = 1;
-    table->columns[0].size = 4;
-    table->columns[0].offset = offset;
-    offset += table->columns[0].size;
+    column = column_new_w_name("id");
+    column->type = C_INT;
+    column->position = 1;
+    column->size = 4;
+    column->offset = offset;
+    offset += column->size;
+    column_list_add(table->columns, column);
 
     // Structure of the 'table_name' column.
-    table->columns[1].name = (char*)calloc(11, sizeof(char));
-    strcpy(table->columns[1].name, "table_name");
-    table->columns[1].type = C_CHAR;
-    table->columns[1].position = 2;
-    table->columns[1].size = 101; // An extra byte to record the string null termination.
-    table->columns[1].offset = offset;
-    offset += table->columns[1].size;
+    column = column_new_w_name("table_name");
+    column->type = C_CHAR;
+    column->position = 2;
+    column->size = 101; // An extra byte to record the string null termination.
+    column->offset = offset;
+    offset += column->size;
+    column_list_add(table->columns, column);
 
     // Structure of the 'column_name' column.
-    table->columns[2].name = (char*)calloc(12, sizeof(char));
-    strcpy(table->columns[2].name, "column_name");
-    table->columns[2].type = C_CHAR;
-    table->columns[2].position = 3;
-    table->columns[2].size = 101; // An extra byte to record the string null termination.
-    table->columns[2].offset = offset;
-    offset += table->columns[2].size;
+    column = column_new_w_name("column_name");
+    column->type = C_CHAR;
+    column->position = 3;
+    column->size = 101; // An extra byte to record the string null termination.
+    column->offset = offset;
+    offset += column->size;
+    column_list_add(table->columns, column);
 
     // Structure of the 'data_type' column.
-    table->columns[3].name = (char*)calloc(10, sizeof(char));
-    strcpy(table->columns[3].name, "data_type");
-    table->columns[3].type = C_CHAR;
-    table->columns[3].position = 4;
-    table->columns[3].size = 5; // An extra byte to record the string null termination.
-    table->columns[3].offset = offset;
-    offset += table->columns[3].size;
+    column = column_new_w_name("data_type");
+    column->type = C_CHAR;
+    column->position = 4;
+    column->size = 5; // An extra byte to record the string null termination.
+    column->offset = offset;
+    offset += column->size;
+    column_list_add(table->columns, column);
 
     // Structure of the 'ordinal_position' column.
-    table->columns[4].name = (char*)calloc(17, sizeof(char));
-    strcpy(table->columns[4].name, "ordinal_position");
-    table->columns[4].type = C_INT;
-    table->columns[4].position = 5;
-    table->columns[4].size = 4;
-    table->columns[4].offset = offset;
-    offset += table->columns[4].size;
+    column = column_new_w_name("ordinal_position");
+    column->type = C_INT;
+    column->position = 5;
+    column->size = 4;
+    column->offset = offset;
+    offset += column->size;
+    column_list_add(table->columns, column);
 
     // Structure of the 'size' column.
-    table->columns[5].name = (char*)calloc(5, sizeof(char));
-    strcpy(table->columns[5].name, "size");
-    table->columns[5].type = C_INT;
-    table->columns[5].position = 6;
-    table->columns[5].size = 4;
-    table->columns[5].offset = offset;
-    offset += table->columns[5].size;
+    column = column_new_w_name("size");
+    column->type = C_INT;
+    column->position = 6;
+    column->size = 4;
+    column->offset = offset;
+    offset += column->size;
+    column_list_add(table->columns, column);
 
     // Structure of the 'next_value' column.
-    table->columns[6].name = (char*)calloc(11, sizeof(char));
-    strcpy(table->columns[6].name, "next_value");
-    table->columns[6].type = C_INT;
-    table->columns[6].position = 7;
-    table->columns[6].size = 4;
-    table->columns[6].offset = offset;
-    offset += table->columns[6].size;
+    column = column_new_w_name("next_value");
+    column->type = C_INT;
+    column->position = 7;
+    column->size = 4;
+    column->offset = offset;
+    offset += column->size;
+    column_list_add(table->columns, column);
 }
 
 void table_read_definition(Table *table, Table *columns) {
@@ -227,28 +244,46 @@ void table_read_definition(Table *table, Table *columns) {
     } else if (strcmp(table->name, "columns") == 0) {
         table_read_definition_columns(table);
     } else {
-        int row_size = table_get_row_size(table);
-        char *row = (char*)calloc(row_size, sizeof(char));
-        memset(row, 0, row_size);
+        DataSet *data_set = select_statement(columns);
 
-        lseek(columns->fd, 0, SEEK_SET);
+        Column *table_name_column = column_list_get(data_set->columns,
+                                    column_list_find(columns->columns, "table_name"));
+        Column *column_name_column = column_list_get(data_set->columns,
+                                     column_list_find(columns->columns, "column_name"));
+        Column *data_type_column = column_list_get(data_set->columns,
+                                   column_list_find(columns->columns, "data_type"));
+        Column *position_column = column_list_get(data_set->columns,
+                                  column_list_find(columns->columns, "ordinal_position"));
+        Column *size_column = column_list_get(data_set->columns,
+                                              column_list_find(columns->columns, "size"));
 
-        while (read_row(columns->fd, row, row_size) > 0) {
-            for (int i = 0; i < table->num_columns; i++) {
-                switch (table->columns[i].type) {
-                case C_CHAR:
-                    printf("%-20s ", get_row_char_data(row, table->columns + i));
-                    break;
-                case C_INT:
-                    printf("%-7d ", *get_row_int_data(row, table->columns + i));
-                    break;
-                default:
-                    break;
+        for (int i = 0; i < data_set->num_rows; i++) {
+            char *row = *(data_set->rows + i);
+            char *table_name = get_row_char_data(row, table_name_column);
+            if (strcmp(table->name, table_name) == 0) {
+                char *column_name = get_row_char_data(row, column_name_column);
+                Column *column = column_new_w_name(column_name);
+                char *data_type = get_row_char_data(row, data_type_column);
+                if (strcmp(data_type, "int") == 0) {
+                    column->type = C_INT;
+                } else {
+                    column->type = C_CHAR;
                 }
+                column->position = *get_row_int_data(row, position_column);
+                column->size = *get_row_int_data(row, size_column);
+                column_list_add(table->columns, column);
             }
-            printf("\n");
         }
-        free(row);
+
+        column_list_sort_position(table->columns);
+        int offset = 0;
+        for (int i = 0; i < column_list_size(table->columns); i++) {
+            Column *column = column_list_get(table->columns, i);
+            column->offset = offset;
+            offset += column->size;
+        }
+
+        dataset_free(data_set);
     }
 }
 

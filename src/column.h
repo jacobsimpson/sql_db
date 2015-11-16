@@ -13,6 +13,10 @@ typedef struct Column {
     int offset; // The location of this column data within a row.
 } Column;
 
+Column *column_new_w_name(const char *name);
+
+void column_free(Column *column);
+
 void column_free_array(int num_columns, Column *columns);
 
 #endif
