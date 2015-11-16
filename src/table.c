@@ -39,13 +39,13 @@ static void table_create_columns(Table *table) {
     int row_size = table_get_row_size(table);
     char *row = (char*)alloca(row_size * sizeof(char));
     memset(row, 0, row_size);
-    int *id = get_row_int_data(row, column_list_get(table->columns, 0));
-    char *table_name = get_row_char_data(row, column_list_get(table->columns, 1));
-    char *column_name = get_row_char_data(row, column_list_get(table->columns, 2));
-    char *data_type = get_row_char_data(row, column_list_get(table->columns, 3));
-    int *position = get_row_int_data(row, column_list_get(table->columns, 4));
-    int *size = get_row_int_data(row, column_list_get(table->columns, 5));
-    int *next_value = get_row_int_data(row, column_list_get(table->columns, 6));
+    int *id = row_get_int(row, column_list_get(table->columns, 0));
+    char *table_name = row_get_char(row, column_list_get(table->columns, 1));
+    char *column_name = row_get_char(row, column_list_get(table->columns, 2));
+    char *data_type = row_get_char(row, column_list_get(table->columns, 3));
+    int *position = row_get_int(row, column_list_get(table->columns, 4));
+    int *size = row_get_int(row, column_list_get(table->columns, 5));
+    int *next_value = row_get_int(row, column_list_get(table->columns, 6));
 
     int i;
     for (i = 0; i < column_list_size(table->columns); i++) {
@@ -61,7 +61,7 @@ static void table_create_columns(Table *table) {
         *position = column_list_get(table->columns, i)->position;
         *size = column_list_get(table->columns, i)->size;
         *next_value = 0;
-        write_row(table->fd, row, row_size);
+        row_write(table->fd, row, row_size);
     }
 
     *id = i++;
@@ -71,7 +71,7 @@ static void table_create_columns(Table *table) {
     *position = 1;
     *size = 4;
     *next_value = 0;
-    write_row(table->fd, row, row_size);
+    row_write(table->fd, row, row_size);
 
     *id = i++;
     strlcpy(table_name, "tables", column_list_get(table->columns, 1)->size);
@@ -80,7 +80,7 @@ static void table_create_columns(Table *table) {
     *position = 2;
     *size = 101;
     *next_value = 0;
-    write_row(table->fd, row, row_size);
+    row_write(table->fd, row, row_size);
 }
 
 static void table_create_tables(Table *table) {
@@ -89,16 +89,16 @@ static void table_create_tables(Table *table) {
     int row_size = table_get_row_size(table);
     char *row = (char*)alloca(row_size * sizeof(char));
     memset(row, 0, row_size);
-    int *id = get_row_int_data(row, column_list_get(table->columns, 0));
-    char *table_name = get_row_char_data(row, column_list_get(table->columns, 1));
+    int *id = row_get_int(row, column_list_get(table->columns, 0));
+    char *table_name = row_get_char(row, column_list_get(table->columns, 1));
 
     *id = 0;
     strlcpy(table_name, table->name, column_list_get(table->columns, 1)->size);
-    write_row(table->fd, row, row_size);
+    row_write(table->fd, row, row_size);
 
     *id = 1;
     strlcpy(table_name, "columns", 8);
-    write_row(table->fd, row, row_size);
+    row_write(table->fd, row, row_size);
 }
 
 /* A database file contains a single table. */
@@ -139,7 +139,7 @@ DataSet *select_statement(Table *table) {
     }
 
     char *row = (char*)calloc(row_size, sizeof(char));
-    while (read_row(table->fd, row, row_size) > 0) {
+    while (row_read(table->fd, row, row_size) > 0) {
         dataset_add_row(data_set, row);
         row = (char*)calloc(row_size, sizeof(char));
     }
@@ -259,18 +259,18 @@ void table_read_definition(Table *table, Table *columns) {
 
         for (int i = 0; i < data_set->num_rows; i++) {
             char *row = *(data_set->rows + i);
-            char *table_name = get_row_char_data(row, table_name_column);
+            char *table_name = row_get_char(row, table_name_column);
             if (strcmp(table->name, table_name) == 0) {
-                char *column_name = get_row_char_data(row, column_name_column);
+                char *column_name = row_get_char(row, column_name_column);
                 Column *column = column_new_w_name(column_name);
-                char *data_type = get_row_char_data(row, data_type_column);
+                char *data_type = row_get_char(row, data_type_column);
                 if (strcmp(data_type, "int") == 0) {
                     column->type = C_INT;
                 } else {
                     column->type = C_CHAR;
                 }
-                column->position = *get_row_int_data(row, position_column);
-                column->size = *get_row_int_data(row, size_column);
+                column->position = *row_get_int(row, position_column);
+                column->size = *row_get_int(row, size_column);
                 column_list_add(table->columns, column);
             }
         }

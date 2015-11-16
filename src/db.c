@@ -23,17 +23,17 @@ void insert_statement(Table *table, DataSet *data_set) {
                 return;
             }
             if (column_list_get(data_set->columns, c)->type == C_INT) {
-                int *intVal = get_row_int_data(row, column_list_get(table->columns, i));
-                *intVal = *get_row_int_data(data_set->rows[r],
+                int *intVal = row_get_int(row, column_list_get(table->columns, i));
+                *intVal = *row_get_int(data_set->rows[r],
                                             column_list_get(data_set->columns, c));
             } else if (column_list_get(data_set->columns, c)->type == C_CHAR) {
-                char *charVal = get_row_char_data(row, column_list_get(table->columns, i));
-                strlcpy(charVal, get_row_char_data(data_set->rows[r],
+                char *charVal = row_get_char(row, column_list_get(table->columns, i));
+                strlcpy(charVal, row_get_char(data_set->rows[r],
                                                    column_list_get(data_set->columns, c)),
                         column_list_get(data_set->columns, c)->size);
             }
         }
-        write_row(table->fd, row, row_size);
+        row_write(table->fd, row, row_size);
     }
 }
 
@@ -92,7 +92,7 @@ Map *open_all_tables() {
     for (int i = 0; i < data_set->num_rows; i++) {
         char *row = *(data_set->rows + i);
         Column *column = column_list_get(data_set->columns, table_name_col_num);
-        char *table_name = get_row_char_data(row, column);
+        char *table_name = row_get_char(row, column);
         if (strcmp("tables", table_name) != 0
                 && strcmp("columns", table_name) != 0) {
             Table *table = table_new(table_name);
@@ -149,10 +149,10 @@ int main(int argc, char *argv[]) {
             memset(row, 0, row_size);
             for (int c = 0; c < column_list_size(data_set->columns); c++) {
                 if (column_list_get(data_set->columns, c)->type == C_INT) {
-                    int *intVal = get_row_int_data(row, column_list_get(table->columns, c));
+                    int *intVal = row_get_int(row, column_list_get(table->columns, c));
                     *intVal = atoi(argv[c+3]);
                 } else if (column_list_get(data_set->columns, c)->type == C_CHAR) {
-                    char *charVal = get_row_char_data(row, column_list_get(table->columns, c));
+                    char *charVal = row_get_char(row, column_list_get(table->columns, c));
                     strlcpy(charVal, argv[c+3], column_list_get(data_set->columns, c)->size);
                 }
             }

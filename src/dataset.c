@@ -73,11 +73,11 @@ void dataset_print(DataSet *data_set) {
             switch (column->type) {
             case C_CHAR:
                 snprintf(format, 20, "%%-%ds", col_print_width[j]);
-                printf(format, get_row_char_data(row, column));
+                printf(format, row_get_char(row, column));
                 break;
             case C_INT:
                 snprintf(format, 20, "%%-%dd", col_print_width[j]);
-                printf(format, *get_row_int_data(row, column));
+                printf(format, *row_get_int(row, column));
                 break;
             default:
                 break;
