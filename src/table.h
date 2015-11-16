@@ -24,7 +24,7 @@ void table_open(Table* table);
 
 void table_read_definition(Table *table, Table *columns);
 
-DataSet *select_statement(Table *table);
+DataSet *table_scan(Table *table);
 
 #endif
 

@@ -85,7 +85,7 @@ Map *open_all_tables() {
     // Now query the 'tables' table. Using that, it will lead to a list of
     // tables. Using the list of tables, the 'columns' table will be queried to
     // get the necessary table metadata to define the table structure.
-    DataSet *data_set = select_statement(tables);
+    DataSet *data_set = table_scan(tables);
 
     int table_name_col_num = column_list_find(tables->columns, "table_name");
 
@@ -126,7 +126,7 @@ int main(int argc, char *argv[]) {
         if (table == NULL) {
             printf("There is no table '%s'.", argv[2]);
         } else {
-            DataSet *data_set = select_statement(table);
+            DataSet *data_set = table_scan(table);
             dataset_print(data_set);
             dataset_free(data_set);
         }

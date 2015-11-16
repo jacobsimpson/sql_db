@@ -128,7 +128,7 @@ void table_open(Table* table) {
     }
 }
 
-DataSet *select_statement(Table *table) {
+DataSet *table_scan(Table *table) {
     DataSet *data_set = dataset_new();
     int row_size = table_get_row_size(table);
 
@@ -244,7 +244,7 @@ void table_read_definition(Table *table, Table *columns) {
     } else if (strcmp(table->name, "columns") == 0) {
         table_read_definition_columns(table);
     } else {
-        DataSet *data_set = select_statement(columns);
+        DataSet *data_set = table_scan(columns);
 
         Column *table_name_column = column_list_get(data_set->columns,
                                     column_list_find(columns->columns, "table_name"));
