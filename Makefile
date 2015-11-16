@@ -40,7 +40,7 @@ $(BUILD)/test/%: $(TEST)/%.c $(OBJ_FILES) $(BUILD)/test
 	@# Link everything except the program object file containing the main
 	@# function, because that would cause a linker conflict with the main
 	@# function in the test file.
-	gcc -g -O0 -lcheck -o $@ $(filter-out $(BUILD)/db.o,$(OBJ_FILES)) $@.o
+	gcc -g -O0 -lcheck -o $@ $(filter-out $(BUILD)/main.o,$(OBJ_FILES)) $@.o
 
 $(BUILD):
 	mkdir -p $(BUILD)
