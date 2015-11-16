@@ -33,7 +33,7 @@ int table_get_row_size(Table *table) {
     return result;
 }
 
-static void table_create_columns(Table *table) {
+static void init_columns_table(Table *table) {
     lseek(table->fd, 0, SEEK_SET);
 
     int row_size = table_get_row_size(table);
@@ -83,7 +83,7 @@ static void table_create_columns(Table *table) {
     row_write(table->fd, row, row_size);
 }
 
-static void table_create_tables(Table *table) {
+static void init_tables_table(Table *table) {
     lseek(table->fd, 0, SEEK_SET);
 
     int row_size = table_get_row_size(table);
@@ -114,9 +114,9 @@ void table_create(Table *table) {
     // structure of the database, so an empty columns table needs some basic
     // information about the tables every database has, 'columns' and 'tables'.
     if (strcmp(table->name, "columns") == 0) {
-        table_create_columns(table);
+        init_columns_table(table);
     } else if (strcmp(table->name, "tables") == 0) {
-        table_create_tables(table);
+        init_tables_table(table);
     }
 }
 
