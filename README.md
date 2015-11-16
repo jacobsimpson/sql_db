@@ -1,12 +1,17 @@
 # sql_db
 
-This is a superficial implementation of an SQL database. It uses a file per
-table model.
+This is a superficial implementation of a table based database. It uses a file
+per table model. It allows a tables to be:
+* described
+* selected from
+* inserted into
 
 ## Installation
 
 All the development and test was done on Mac OS X. It will probably work on an
 Unix install, but the installation process is only described for a Mac.
+
+These are the basic development tools used on top of XCode:
 
 ```bash
 brew install check
@@ -44,11 +49,15 @@ Select all the rows and columns in the 'columns' table.
 build/db select columns
 ```
 
-Insert a new row. You must specify a value for all the columns, in the order
-the columns appear in the output of the select statement.
+Create a new table by inserting the correct rows into the metadata tables,
+'columns' and 'tables'.  When inserting a row, specify a value for all the
+columns, in the order the columns appear in the output of the select statement.
 
 ```bash
-build/db insert tables 3 the_table_name
+build/db insert columns  9 dogs id         int  1 4  0
+build/db insert columns 10 dogs dog_name   char 2 51 0
+build/db insert columns 11 dogs age        int  4 4  0
+build/db insert tables   2 dogs
 ```
 
 ## Development
@@ -56,7 +65,12 @@ build/db insert tables 3 the_table_name
 ```bash
 make
 make test
-build/db
+```
+
+Execute the tests monitoring for memory leaks:
+
+```bash
+make test_valgrind
 ```
 
 You can run individual tests like so:
